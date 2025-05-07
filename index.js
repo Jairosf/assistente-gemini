@@ -11,13 +11,20 @@ app.get('/', (req, res) => {
 
 app.post('/webhook', async (req, res) => {
   const dados = req.body;
-
-  if (dados.phone !== '5511915491174') return res.send({ status: 'ignorado' });
-
   console.log('📨 Mensagem recebida no webhook:', JSON.stringify(dados, null, 2));
 
+  if (dados.phone !== '5511915491174') {
+    console.log('🔒 Número não autorizado, ignorando.');
+    return res.send({ status: 'ignorado' });
+  }
+
   const pergunta = dados?.text?.message;
-  if (!pergunta) return res.send({ status: 'sem texto' });
+  if (!pergunta) {
+    console.log('⚠️ Nenhuma pergunta encontrada no corpo da mensagem.');
+    return res.send({ status: 'sem texto' });
+  }
+
+  console.log('🤖 Pergunta recebida:', pergunta);
 
   try {
     const respostaGemini = await axios.post(
@@ -34,6 +41,8 @@ app.post('/webhook', async (req, res) => {
     const respostaTexto = respostaGemini.data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Não entendi.';
     const respostaFinal = respostaTexto.slice(0, 400);
 
+    console.log('✅ Resposta da Gemini:', respostaFinal);
+
     const urlZAPI = `https://api.z-api.io/instances/${process.env.ZAPI_INSTANCE_ID}/token/${process.env.ZAPI_TOKEN}/send-text`;
 
     const respostaZAPI = await axios.post(urlZAPI, {
@@ -43,8 +52,9 @@ app.post('/webhook', async (req, res) => {
 
     console.log('✅ Mensagem enviada via Z-API:', respostaZAPI.data);
     res.send({ status: 'respondido com sucesso' });
+
   } catch (erro) {
-    console.error('❌ Erro ao enviar resposta:', erro.response?.data || erro.message);
+    console.error('❌ Erro no processo:', erro.response?.data || erro.message);
     res.status(500).send({ erro: 'Erro ao responder' });
   }
 });
