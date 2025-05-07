@@ -12,16 +12,14 @@ app.get('/', (req, res) => {
 app.post('/webhook', async (req, res) => {
   const dados = req.body;
 
-  // Permitir respostas apenas para este número específico
   if (dados.phone !== '5511915491174') return res.send({ status: 'ignorado' });
 
   console.log('📨 Mensagem recebida no webhook:', JSON.stringify(dados, null, 2));
 
   const pergunta = dados?.text?.message;
-  if (!pergunta) return res.send({ status: 'sem texto válido' });
+  if (!pergunta) return res.send({ status: 'sem texto' });
 
   try {
-    // Chamada à API Gemini
     const respostaGemini = await axios.post(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
       { contents: [{ parts: [{ text: pergunta }] }] },
@@ -34,43 +32,20 @@ app.post('/webhook', async (req, res) => {
     );
 
     const respostaTexto = respostaGemini.data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Não entendi.';
-
-    // Truncar para 400 caracteres (limite típico)
     const respostaFinal = respostaTexto.slice(0, 400);
 
-    // Enviar resposta via Z-API
-    await axios.post(`https://api.z-api.io/instances/${process.env.ZAPI_INSTANCE_ID}/token/${process.env.ZAPI_TOKEN}/send-text`, {
+    const urlZAPI = `https://api.z-api.io/instances/${process.env.ZAPI_INSTANCE_ID}/token/${process.env.ZAPI_TOKEN}/send-text`;
+
+    const respostaZAPI = await axios.post(urlZAPI, {
       phone: dados.phone,
       message: respostaFinal,
     });
 
+    console.log('✅ Mensagem enviada via Z-API:', respostaZAPI.data);
     res.send({ status: 'respondido com sucesso' });
-  } catch (err) {
-    console.error('Erro ao responder via Gemini/Z-API:', err.message);
-    res.status(500).send({ erro: 'Falha ao responder' });
-  }
-});
-
-app.post('/perguntar', async (req, res) => {
-  const pergunta = req.body.pergunta;
-  if (!pergunta) return res.status(400).send({ erro: 'Pergunta ausente.' });
-
-  try {
-    const resposta = await axios.post(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
-      { contents: [{ parts: [{ text: pergunta }] }] },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': process.env.GEMINI_API_KEY,
-        },
-      }
-    );
-    const texto = resposta.data.candidates[0].content.parts[0].text;
-    res.send({ resposta: texto });
-  } catch (err) {
-    console.error('Erro na API Gemini:', err.message);
-    res.status(500).send({ erro: 'Erro ao consultar Gemini.' });
+  } catch (erro) {
+    console.error('❌ Erro ao enviar resposta:', erro.response?.data || erro.message);
+    res.status(500).send({ erro: 'Erro ao responder' });
   }
 });
 
