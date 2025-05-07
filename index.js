@@ -9,6 +9,12 @@ app.get('/', (req, res) => {
     res.send('Servidor do Assistente Pessoal está online!');
 });
 
+app.post('/webhook', (req, res) => {
+    const dados = req.body;
+    console.log('📨 Mensagem recebida no webhook:', JSON.stringify(dados, null, 2));
+    res.send({ status: 'ok' });
+});
+
 app.post('/perguntar', async (req, res) => {
     const pergunta = req.body.pergunta;
     if (!pergunta) return res.status(400).send({ erro: 'Pergunta ausente.' });
