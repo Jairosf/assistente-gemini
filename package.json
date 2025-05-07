@@ -1,6 +1,6 @@
 {
-  "name": "assistente-gemini-debug",
-  "version": "1.0.0",
+  "name": "assistente-gemini-v1",
+  "version": "1.0.1",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
